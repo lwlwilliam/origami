@@ -1,11 +1,16 @@
-namespace App;
+// namespace App;
 
 //include("hello2.cjp");
 
 //echo hello();
 
-string $s = "Hello";
-bool $b = true;
-int $i = 6;
-echo $s + $i + $b, "\n";
-echo $i + $b, "\n";
+// int x = 1 > 2 ? (3 + 4 * 5) : 6 > 7 ? 8 + 9 * 10 : 11 * 11 + 12;
+// echo x, "\n";
+// echo "a". || "b", "\n";
+// echo "a" || "b", "\n";
+echo "a" && "b", "\n";
+// string $s = "Hello";
+// bool $b = true;
+// int $i = 6;
+// echo $s + $i + $b, "\n";
+// echo $i + $b, "\n";

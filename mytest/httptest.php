@@ -7,7 +7,7 @@ function hello() {
     return "Hello World";
 }
 
-echo hello, "\n";
+hello() echo echo hello() echo echo hello(), "\n";
 
 server = new Server(port: 8080);
 
