@@ -1,0 +1,11 @@
+namespace App;
+
+//include("hello2.cjp");
+
+//echo hello();
+
+string $s = "Hello";
+bool $b = true;
+int $i = 6;
+echo $s + $i + $b, "\n";
+echo $i + $b, "\n";

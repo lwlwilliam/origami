@@ -1,0 +1,5 @@
+namespace App;
+
+function hello(): string {
+	return "Hello world\n";
+}
