@@ -1,8 +1,26 @@
+function bar(array $arr): string {
+   return 'Hello '. $arr->join('')
+}
+
+function bar2(string $str): string {
+   return 'Hello '. $str
+}
+
 try {
-    include(__DIR__. "/included.cjp")
+    include(__DIR__. '/included.cjp')
+
+    echo "a" && 4, "\n"
 
     array $arr = ['a', 'b', 'c']
-    echo 4 && $arr[2]
+    echo $arr, "\n"
+    echo $arr[2], "\n"
+
+    array foo = ['a', 'b', 'c']
+    echo foo, "\n"
+//    echo foo[1], "\n"
+
+    echo bar ['w', 'o', 'r', 'l', 'd'] , "\n"
+//    echo bar2 {str: 'world'}, "\n"
 } catch (Error $e) {
-    echo $e->getMessage(), "\n";
+    echo $e->getMessage(), "\n"
 }
