@@ -1,6 +1,8 @@
 package data
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // ThrowControl 表示异常抛出控制流
 type ThrowControl interface {
@@ -17,6 +19,10 @@ type ThrowValue struct {
 	error      *Error
 	extend     string
 	getMessage Method
+}
+
+func (t *ThrowValue) GetFrom() From {
+	return t.error.from
 }
 
 func (t *ThrowValue) GetName() string {
@@ -56,9 +62,13 @@ func (t *ThrowValue) GetConstruct() Method {
 }
 
 func NewErrorThrow(from From, err error) Control {
-	return &ThrowValue{
+	t := &ThrowValue{
 		error: NewError(from, err.Error(), err),
 	}
+	t.getMessage = &ThrowValueGetMessageMethod{
+		source: t,
+	}
+	return t
 }
 
 // TryErrorThrow 可能不需要抛出的错误
@@ -89,4 +99,37 @@ func (t *ThrowValue) GetError() *Error {
 // AsString 获取字符串表示
 func (t *ThrowValue) AsString() string {
 	return fmt.Sprintf("throw %v", t.error.Error())
+}
+
+type ThrowValueGetMessageMethod struct {
+	source *ThrowValue
+}
+
+func (t *ThrowValueGetMessageMethod) Call(ctx Context) (GetValue, Control) {
+	return NewStringValue(t.source.error.Error()), nil
+}
+
+func (t *ThrowValueGetMessageMethod) GetName() string {
+	return "getMessage"
+}
+
+func (t *ThrowValueGetMessageMethod) GetModifier() Modifier {
+	return ModifierPublic
+}
+
+func (t *ThrowValueGetMessageMethod) GetIsStatic() bool {
+	return false
+}
+
+func (t *ThrowValueGetMessageMethod) GetParams() []GetValue {
+	return []GetValue{}
+}
+
+func (t *ThrowValueGetMessageMethod) GetVariables() []Variable {
+	return []Variable{}
+}
+
+// GetReturnType 返回方法返回类型
+func (t *ThrowValueGetMessageMethod) GetReturnType() Types {
+	return NewBaseType("string")
 }
