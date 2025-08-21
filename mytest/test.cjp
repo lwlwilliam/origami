@@ -1,0 +1,43 @@
+// namespace tests\func;
+
+// echo a b c d e, "\n";
+// echo "Hello world", "\n";
+
+// try {
+//     if("a" && "b") {
+//         echo "OK"
+//     }
+// } catch (Error $e) {
+//     echo "------------------------\n", $e->getMessage(), "\n========================\n";
+// }
+
+function test($num = 0) {
+    if ($num < 10) {
+        test($num + 1);
+        echo "Not OK\n";
+    } else {
+        echo "OK\n";
+    }
+}
+
+echo test, "\n";
+
+// echo "a" && "b", "\n";
+// function testFunc($num: int = 0) {
+//     if ($num < 2) {
+//         return $num;
+//     } else {
+//         // return testFunc($num - 1) + testFunc($num - 2);
+//         return $num;
+//     }
+// }
+//
+// $res = testFunc(5);
+//
+// echo $res, "\n";
+//
+// abc = 123;
+// echo abc, "\n";
+// echo def, "\n";
+// a = Hello world;
+// echo a, "\n";

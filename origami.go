@@ -43,7 +43,7 @@ func main() {
 	http.Load(vm)
 	system.Load(vm)
 
-	os.Args = append(os.Args, "./mytest/httptest.php")
+	os.Args = append(os.Args, "./mytest/include.cjp")
 
 	// 检查命令行参数
 	if len(os.Args) < 2 {

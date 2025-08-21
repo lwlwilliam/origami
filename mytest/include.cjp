@@ -1,0 +1,8 @@
+try {
+    include(__DIR__. "/included.cjp")
+
+    array $arr = ['a', 'b', 'c']
+    echo 4 && $arr[2]
+} catch (Error $e) {
+    echo $e->getMessage(), "\n";
+}
