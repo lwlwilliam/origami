@@ -21,13 +21,40 @@ func (m *MixedValue) AsString() string {
 }
 
 func (m *MixedValue) AsInt() (int, error) {
-	return 0, nil
+	switch m.Value.(type) {
+	case FloatValue:
+		return int(m.Value.(FloatValue).Value), nil
+	case IntValue:
+		return m.Value.(IntValue).Value, nil
+	default:
+		return 0, nil
+	}
 }
 
 func (m *MixedValue) AsFloat() (float64, error) {
-	return float64(0), nil
+	switch m.Value.(type) {
+	case FloatValue:
+		return m.Value.(FloatValue).Value, nil
+	case IntValue:
+		return float64(m.Value.(IntValue).Value), nil
+	default:
+		return 0, nil
+	}
 }
 
 func (m *MixedValue) AsBool() (bool, error) {
-	return false, nil
+	switch m.Value.(type) {
+	case BoolValue:
+		return m.Value.(BoolValue).Value, nil
+	case StringValue:
+		return m.Value.(StringValue).Value != "", nil
+	case IntValue:
+		return m.Value.(IntValue).Value != 0, nil
+	case FloatValue:
+		return m.Value.(FloatValue).Value != 0, nil
+	case ArrayValue:
+		return len(m.Value.(ArrayValue).Value) != 0, nil
+	default:
+		return false, nil
+	}
 }

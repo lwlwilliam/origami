@@ -2,10 +2,11 @@ package parser
 
 import (
 	"errors"
+	"strings"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/token"
-	"strings"
 )
 
 type HtmlParser struct {
