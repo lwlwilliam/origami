@@ -1,6 +1,7 @@
 package data
 
 import (
+	"context"
 	"fmt"
 	"sync"
 )
@@ -18,6 +19,10 @@ type ObjectValue struct {
 	Value
 	Context
 	property sync.Map
+}
+
+func (o *ObjectValue) GoContext() context.Context {
+	return context.Background()
 }
 
 func (o *ObjectValue) GetValue(ctx Context) (GetValue, Control) {
@@ -56,8 +61,9 @@ func (o *ObjectValue) GetProperty(name string) (Value, bool) {
 	return v.(Value), ok
 }
 
-func (o *ObjectValue) SetProperty(name string, value Value) {
+func (o *ObjectValue) SetProperty(name string, value Value) Control {
 	o.property.Store(name, value)
+	return nil
 }
 
 func (o *ObjectValue) DeleteProperty(name string) {
@@ -94,4 +100,12 @@ func (o *ObjectValue) GetVariableValue(variable Variable) (Value, Control) {
 		return nil, nil
 	}
 	return v.(Value), nil
+}
+
+func (o *ObjectValue) Marshal(serializer Serializer) ([]byte, error) {
+	return serializer.MarshalObject(o)
+}
+
+func (o *ObjectValue) Unmarshal(data []byte, serializer Serializer) error {
+	return serializer.UnmarshalObject(data, o)
 }

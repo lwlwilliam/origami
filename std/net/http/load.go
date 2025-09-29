@@ -5,5 +5,10 @@ import (
 )
 
 func Load(vm data.VM) {
-	vm.AddClass(&ServerClass{})
+	// 添加类
+	vm.AddClass(NewServerClass())
+	vm.AddClass(NewHandlerClass())
+	vm.AddClass(NewCookieClass())
+	vm.AddClass(NewResponseWriterClass())
+	vm.AddClass(NewRequestClass())
 }

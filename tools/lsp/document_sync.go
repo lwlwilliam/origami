@@ -3,10 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/php-any/origami/data"
 	"strings"
 
 	"github.com/php-any/origami/node"
-
+	"github.com/sirupsen/logrus"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
@@ -23,7 +24,7 @@ func handleTextDocumentDidOpen(conn *jsonrpc2.Conn, req *jsonrpc2.Request) (inte
 	content := params.TextDocument.Text
 	version := params.TextDocument.Version
 
-	logger.Info("文档已打开：%s", uri)
+	logrus.Infof("文档已打开：%s", uri)
 
 	// 创建解析器
 	p := NewLspParser()
@@ -41,7 +42,7 @@ func handleTextDocumentDidOpen(conn *jsonrpc2.Conn, req *jsonrpc2.Request) (inte
 		filePath := uriToFilePath(uri)
 		ast, err = p.ParseFile(filePath)
 		if err != nil {
-			logger.Warn("解析 AST 失败 %s：%v", uri, err)
+			logrus.Warnf("解析 AST 失败 %s：%v", uri, err)
 			// 解析失败时，AST 为 nil，但仍然创建文档信息
 		}
 	}
@@ -72,7 +73,7 @@ func handleTextDocumentDidChange(conn *jsonrpc2.Conn, req *jsonrpc2.Request) (in
 	uri := params.TextDocument.URI
 	version := params.TextDocument.Version
 
-	logger.Info("文档已变更：%s", uri)
+	logrus.Infof("文档已变更：%s", uri)
 
 	_, exists := documents[uri]
 	if !exists {
@@ -94,7 +95,7 @@ func handleTextDocumentDidChange(conn *jsonrpc2.Conn, req *jsonrpc2.Request) (in
 
 	// 解析 AST
 	var ast *node.Program
-	var err error
+	var acl data.Control
 
 	// 使用编辑器提供的最新内容来解析，而不是从磁盘读取
 
@@ -113,9 +114,9 @@ func handleTextDocumentDidChange(conn *jsonrpc2.Conn, req *jsonrpc2.Request) (in
 	} else {
 		filePath = "memory_content" // 非文件 URI 使用虚拟路径
 	}
-	ast, err = p.ParseString(content, filePath)
-	if err != nil {
-		logger.Warn("重新解析 AST 失败 %s：%v", uri, err)
+	ast, acl = p.ParseString(content, filePath)
+	if acl != nil {
+		logrus.Warnf("重新解析 AST 失败 %s：%v", uri, acl)
 		// 解析失败时，只更新内容和版本，保留原有的 AST 和解析器
 		if existingDoc, exists := documents[uri]; exists {
 			existingDoc.Content = content
@@ -131,7 +132,7 @@ func handleTextDocumentDidChange(conn *jsonrpc2.Conn, req *jsonrpc2.Request) (in
 		AST:     ast,
 		Parser:  p,
 	}
-	logger.Info("重新解析 AST 成功 %s; %v", uri, ast)
+	logrus.Infof("重新解析 AST 成功 %s; %v", uri, ast)
 	// 验证文档
 	validateDocument(conn, uri, content)
 
@@ -149,7 +150,7 @@ func handleTextDocumentDidClose(conn *jsonrpc2.Conn, req *jsonrpc2.Request) (int
 
 	uri := params.TextDocument.URI
 
-	logger.Info("文档已关闭：%s", uri)
+	logrus.Infof("文档已关闭：%s", uri)
 
 	// 清除 LspVM 中该文件的符号
 	if strings.HasPrefix(uri, "file://") {

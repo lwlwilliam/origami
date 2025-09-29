@@ -1,6 +1,9 @@
 package data
 
-import "errors"
+import (
+	"context"
+	"errors"
+)
 
 type Context interface {
 	SetNamespace(name string) Context
@@ -15,6 +18,8 @@ type Context interface {
 	CreateBaseContext() Context
 
 	GetVM() VM
+
+	GoContext() context.Context
 }
 
 type VM interface {
@@ -175,6 +180,14 @@ type Parameters interface {
 	GetValue(ctx Context) (GetValue, Control)
 	GetDefaultValue() GetValue
 	GetVariables() []Variable
+}
+
+type GetStaticProperty interface {
+	GetStaticProperty(name string) (Value, bool)
+}
+
+type GetStaticMethod interface {
+	GetStaticMethod(name string) (Method, bool)
 }
 
 // NewParameter 单个参数接收

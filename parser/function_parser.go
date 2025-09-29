@@ -46,10 +46,14 @@ func (fp *FunctionParser) Parse() (data.GetValue, data.Control) {
 		return nil, acl
 	}
 	ret, acl := fp.parserReturnType()
-
+	if acl != nil {
+		return nil, acl
+	}
 	// 解析函数体
-	body := fp.parseBlock()
-
+	body, acl := fp.parseBlock()
+	if acl != nil {
+		return nil, acl
+	}
 	vars := fp.scopeManager.CurrentScope().GetVariables()
 
 	// 弹出函数作用域
@@ -96,7 +100,7 @@ func (fp FunctionParser) parserReturnType() (data.Types, data.Control) {
 			}
 
 			// 解析返回类型
-			if fp.current().Type == token.IDENTIFIER {
+			if fp.checkPositionIs(0, token.IDENTIFIER, token.STRING, token.INT, token.FLOAT, token.BOOL, token.ARRAY) {
 				returnType := fp.current().Literal
 				fp.next()
 
@@ -110,7 +114,7 @@ func (fp FunctionParser) parserReturnType() (data.Types, data.Control) {
 
 				returnTypes = append(returnTypes, baseType)
 			} else {
-				return nil, data.NewErrorThrow(fp.newFrom(), errors.New("缺少返回类型"))
+				return nil, data.NewErrorThrow(fp.newFrom(), errors.New("无法识别返回类型的定义符号"))
 			}
 
 			// 检查是否有更多类型（逗号分隔）

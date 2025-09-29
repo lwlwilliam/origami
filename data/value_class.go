@@ -1,6 +1,7 @@
 package data
 
 import (
+	"context"
 	"fmt"
 )
 
@@ -158,6 +159,7 @@ func (c *ClassValue) GetProperties() map[string]Value {
 						}
 					} else {
 						result[name] = NewNullValue()
+						c.SetProperty(name, result[name]) // 需要引用起来
 					}
 				}
 			}
@@ -180,12 +182,24 @@ func (c *ClassValue) CreateContext(vars []Variable) Context {
 }
 
 func (c *ClassValue) SetVariableValue(variable Variable, value Value) Control {
-	c.SetProperty(variable.GetName(), value)
+	return c.SetProperty(variable.GetName(), value)
+}
+
+func (c *ClassValue) SetProperty(name string, value Value) Control {
+	if set, ok := c.Class.(SetProperty); ok {
+		return set.SetProperty(name, value)
+	} else {
+		c.property.Store(name, value)
+	}
 	return nil
 }
 
 func (c *ClassValue) GetVariableValue(variable Variable) (Value, Control) {
 	return c.ObjectValue.GetVariableValue(variable)
+}
+
+func (c *ClassValue) GoContext() context.Context {
+	return context.Background()
 }
 
 type ClassMethodContext struct {
@@ -206,4 +220,16 @@ func (c *ClassMethodContext) GetVariableValue(variable Variable) (Value, Control
 
 func (c *ClassMethodContext) GetIndexValue(index int) (Value, bool) {
 	return c.Context.GetIndexValue(index)
+}
+
+func (c *ClassMethodContext) GoContext() context.Context {
+	return context.Background()
+}
+
+func (c *ClassValue) Marshal(serializer Serializer) ([]byte, error) {
+	return serializer.MarshalClass(c)
+}
+
+func (c *ClassValue) Unmarshal(data []byte, serializer Serializer) error {
+	return serializer.UnmarshalClass(data, c)
 }

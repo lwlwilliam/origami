@@ -78,18 +78,29 @@ func (vp *VariableParser) parseSuffix(expr data.GetValue) (data.GetValue, data.C
 				return nil, acl
 			}
 		case token.SCOPE_RESOLUTION:
-			// 处理 ::class 语法
+			vp.next() // 跳过 ::
+			tracker := vp.StartTracking()
 			if vp.checkPositionIs(1, token.CLASS) {
-				tracker := vp.StartTracking()
-				vp.next() // 跳过 ::
+				// 处理 ::class 语法
 				vp.next() // 跳过 class
-				from := tracker.EndBefore()
 				// 生成 ClassConstant 节点
-				return node.NewClassConstant(from, expr), nil
+				return node.NewClassConstant(tracker.EndBefore(), expr), nil
+			} else if vp.checkPositionIs(0, token.LPAREN) {
+				// 处理 ::test()
+				fnName := vp.current().Literal
+				vp.next()
+				// 创建函数调用表达式
+				vp := &VariableParser{vp.Parser}
+				expr := node.NewCallStaticMethod(tracker.EndBefore(), expr, fnName)
+				return vp.parseSuffix(expr)
+			} else {
+				// 处理 ::test;
+				attrName := vp.current().Literal
+				vp.next()
+				vp := &VariableParser{vp.Parser}
+				expr := node.NewCallStaticProperty(tracker.EndBefore(), expr, attrName)
+				return vp.parseSuffix(expr)
 			}
-			// 处理其他 :: 语法（如静态方法调用）
-			// 这里可以添加静态方法调用的处理
-			return expr, nil
 		default:
 			return expr, nil
 		}
@@ -127,7 +138,7 @@ func (vp *VariableParser) parseFunctionCall() ([]data.GetValue, data.Control) {
 			} else {
 				expr, acl := vp.parseStatement()
 				if acl != nil {
-					vp.addControl(acl)
+					return nil, acl
 				}
 				if list, ok := expr.(*node.VariableList); ok {
 					for _, expr = range list.Vars {
@@ -149,9 +160,7 @@ func (vp *VariableParser) parseFunctionCall() ([]data.GetValue, data.Control) {
 		}
 	}
 
-	vp.nextAndCheck(token.RPAREN)
-
-	return args, nil
+	return args, vp.nextAndCheck(token.RPAREN)
 }
 
 // parseArrayAccess 解析数组访问
@@ -264,7 +273,7 @@ func (vp *VariableParser) parsePropertyAccess(object data.GetValue) (data.GetVal
 		if vp.checkPositionIs(0, token.LPAREN) {
 			stmt, acl := vp.parseFunctionCall()
 			if acl != nil {
-				vp.addControl(acl)
+				return nil, acl
 			}
 			from := tracker.EndBefore()
 			return node.NewObjectMethod(
