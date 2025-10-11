@@ -1,6 +1,3 @@
-<?php
-namespace database\sql;
-
 
 /**
  * functions - 标准库函数
@@ -11,10 +8,18 @@ namespace database\sql;
 
 
 /**
- * open 函数
+ * dump 函数
  * 
  */
-function open($driverName, $dataSourceName) {
+function dump(...$args) {
+    // 实现逻辑
+}
+
+/**
+ * include 函数
+ * 
+ */
+function include($filename) {
     // 实现逻辑
 }
 

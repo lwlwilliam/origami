@@ -1,4 +1,3 @@
-<?php
 namespace Net\Http;
 
 
@@ -29,7 +28,7 @@ class Response {
      * header 方法
      * 
      */
-    public function header() {
+    public function header() : Net\Http\Header {
         // 实现逻辑
     }
 

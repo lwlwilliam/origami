@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
+	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -34,13 +36,13 @@ func handleTextDocumentDefinition(req *jsonrpc2.Request) (interface{}, error) {
 		return nil, nil
 	}
 
-	result := []Location{*location}
+	result := location
 	logLSPResponse("textDocument/definition", result, nil)
 	return result, nil
 }
 
 // findDefinitionInAST 在 AST 中查找定义位置
-func findDefinitionInAST(doc *DocumentInfo, position Position) *Location {
+func findDefinitionInAST(doc *DocumentInfo, position Position) []*Location {
 	if doc.AST == nil {
 		return nil
 	}
@@ -51,6 +53,7 @@ func findDefinitionInAST(doc *DocumentInfo, position Position) *Location {
 	var targetNode data.GetValue
 	var targetCtx *LspContext
 	doc.Foreach(func(ctx *LspContext, parent, child data.GetValue) bool {
+		chackAndSetTypeVariableDefinition(ctx, parent, child)
 		// 检查当前节点是否包含光标位置
 		if isPositionInRange(child, position) {
 			logrus.Debugf("找到包含位置的节点：%T，父节点：%T", child, parent)
@@ -93,7 +96,7 @@ func findDefinitionInAST(doc *DocumentInfo, position Position) *Location {
 }
 
 // findDefinitionFromNode 根据节点类型查找定义位置
-func findDefinitionFromNode(ctx *LspContext, v data.GetValue) *Location {
+func findDefinitionFromNode(ctx *LspContext, v data.GetValue) []*Location {
 	if v == nil {
 		return nil
 	}
@@ -110,7 +113,10 @@ func findDefinitionFromNode(ctx *LspContext, v data.GetValue) *Location {
 		// 方法调用，查找方法定义
 		// 注意：CallMethod 的 Method 字段是 data.GetValue 类型，需要进一步处理
 		if method, ok := n.Method.(interface{ GetName() string }); ok {
-			return findMethodDefinition(ctx, "", method.GetName())
+			if loc := findMethodDefinition(ctx, "", method.GetName()); loc != nil {
+				return []*Location{loc}
+			}
+			return nil
 		}
 		return nil
 	case *node.CallObjectMethod:
@@ -118,17 +124,24 @@ func findDefinitionFromNode(ctx *LspContext, v data.GetValue) *Location {
 		logrus.Debugf("CallObjectMethod: object=%T, method=%s", n.Object, n.Method)
 
 		// 检查是否是链式调用（对象是另一个方法调用的结果）
-		if chainCall, ok := n.Object.(*node.CallObjectMethod); ok {
+		switch chainCall := n.Object.(type) {
+		case *node.CallObjectMethod:
 			// 这是一个链式调用，需要递归解析
 			logrus.Debug("检测到链式调用，递归解析")
-			return findChainedMethodDefinition(ctx, chainCall, n.Method)
+			if loc := findChainedMethodDefinition(ctx, chainCall, n.Method); loc != nil {
+				return []*Location{loc}
+			}
+			return nil
 		}
 
 		// 普通对象方法调用
 		return findObjectMethodDefinition(ctx, n.Object, n.Method)
 	case *node.VariableExpression:
 		// 变量引用，查找变量定义
-		return findVariableDefinition(ctx, n.Name)
+		if loc := findVariableDefinition(ctx, n.Name); loc != nil {
+			return []*Location{loc}
+		}
+		return nil
 	}
 
 	// 对于其他类型的节点，暂时返回 nil
@@ -527,7 +540,7 @@ func isPositionInLineRange(stmt node.Statement, position Position) bool {
 }
 
 // findFunctionDefinition 查找函数定义
-func findFunctionDefinition(ctx *LspContext, funcName string) *Location {
+func findFunctionDefinition(ctx *LspContext, funcName string) []*Location {
 	if globalLspVM == nil {
 		return nil
 	}
@@ -535,7 +548,7 @@ func findFunctionDefinition(ctx *LspContext, funcName string) *Location {
 	logrus.Debugf("查找函数定义：%s", funcName)
 	if function, exists := globalLspVM.GetFunc(funcName); exists {
 		logrus.Debugf("找到函数：%#v，位置：%#v", function, function)
-		return createLocationFromFunction(function)
+		return []*Location{createLocationFromFunction(function)}
 	}
 
 	logrus.Debugf("未找到函数：%s", funcName)
@@ -543,20 +556,20 @@ func findFunctionDefinition(ctx *LspContext, funcName string) *Location {
 }
 
 // findClassDefinition 查找类定义
-func findClassDefinition(ctx *LspContext, className string) *Location {
+func findClassDefinition(ctx *LspContext, className string) []*Location {
 	if globalLspVM == nil {
 		return nil
 	}
 
 	if class, exists := globalLspVM.GetClass(className); exists {
-		return createLocationFromClass(class)
+		return []*Location{createLocationFromClass(class)}
 	}
 
 	return nil
 }
 
 // findObjectMethodDefinition 查找对象方法定义
-func findObjectMethodDefinition(ctx *LspContext, object data.GetValue, methodName string) *Location {
+func findObjectMethodDefinition(ctx *LspContext, object data.GetValue, methodName string) []*Location {
 	if globalLspVM == nil {
 		return nil
 	}
@@ -570,11 +583,27 @@ func findObjectMethodDefinition(ctx *LspContext, object data.GetValue, methodNam
 		// 首先尝试从变量节点的类型信息获取
 		if varExpr.Type != nil {
 			// 从类型信息中获取类名
-			if className := getClassNameFromType(varExpr.Type); className != "" {
-				// 根据类名查找类定义
-				if class, exists := globalLspVM.GetClass(className); exists {
-					if methodLocation := findMethodInClass(class, methodName); methodLocation != nil {
-						return methodLocation
+			switch t := varExpr.Type.(type) {
+			case *data.LspTypes:
+				var ret []*Location
+				for _, tt := range t.Types {
+					if className := getClassNameFromType(tt); className != "" {
+						// 根据类名查找类定义
+						if class, exists := globalLspVM.GetClass(className); exists {
+							if methodLocation := findMethodInClass(class, methodName); methodLocation != nil {
+								ret = append(ret, methodLocation)
+							}
+						}
+					}
+				}
+				return ret
+			default:
+				if className := getClassNameFromType(varExpr.Type); className != "" {
+					// 根据类名查找类定义
+					if class, exists := globalLspVM.GetClass(className); exists {
+						if methodLocation := findMethodInClass(class, methodName); methodLocation != nil {
+							return []*Location{methodLocation}
+						}
 					}
 				}
 			}
@@ -590,7 +619,7 @@ func findObjectMethodDefinition(ctx *LspContext, object data.GetValue, methodNam
 					// 根据类名查找类定义
 					if class, exists := globalLspVM.GetClass(className); exists {
 						if methodLocation := findMethodInClass(class, methodName); methodLocation != nil {
-							return methodLocation
+							return []*Location{methodLocation}
 						}
 					}
 				}
@@ -605,13 +634,13 @@ func findObjectMethodDefinition(ctx *LspContext, object data.GetValue, methodNam
 		// 这里需要获取当前类的上下文，暂时简化处理
 		// 可以尝试查找同名函数作为备选
 		if function, exists := globalLspVM.GetFunc(methodName); exists {
-			return createLocationFromFunction(function)
+			return []*Location{createLocationFromFunction(function)}
 		}
 	}
 
 	// 如果找不到具体的类，尝试查找同名函数作为备选
 	if function, exists := globalLspVM.GetFunc(methodName); exists {
-		return createLocationFromFunction(function)
+		return []*Location{createLocationFromFunction(function)}
 	}
 
 	return nil
@@ -797,6 +826,120 @@ func inferMethodReturnType(class data.ClassStmt, methodName string) data.Types {
 
 	// 默认返回空字符串，表示无法推断
 	return inferredType
+}
+
+// 对未设置变量类型的变量尝试设置类型
+func chackAndSetTypeVariableDefinition(ctx *LspContext, parent, child data.GetValue) {
+	switch c := child.(type) {
+	case *node.BinaryAssignVariable:
+		t := data.NewLspTypes(getTypes(c.Right))
+
+		if t != nil && c.Left.GetType().String() == "LspTypes" {
+			setTypes(c.Left, getTypes(c.Right))
+		}
+	case *node.BinaryAssign:
+
+	}
+}
+
+// 尝试推断类型
+func getTypes(v data.GetValue) data.Types {
+	switch c := v.(type) {
+	case *node.NewExpression:
+		return data.NewBaseType(c.ClassName)
+	case *node.CallObjectMethod:
+		classT := getTypes(c.Object)
+		switch expr := classT.(type) {
+		case data.Class:
+			if class, exists := globalLspVM.GetClass(expr.Name); exists {
+				if final, ok := class.GetMethod(c.Method); ok {
+					if ret, ok := final.(data.GetReturnType); ok && ret.GetReturnType() != nil {
+						return ret.GetReturnType()
+					}
+				}
+			}
+		}
+	case *node.VariableExpression:
+		switch cc := c.Type.(type) {
+		case *data.LspTypes:
+			for _, types := range cc.Types {
+				return types
+			}
+		default:
+			return cc
+		}
+	}
+	return nil
+}
+
+func setTypes(v data.Variable, t data.Types) {
+	switch c := v.(type) {
+	case *node.VariableExpression:
+		if tt, ok := c.Type.(*data.LspTypes); ok {
+			// 建立已存在类型的键集合（基于结构化指纹）
+			existing := make(map[string]struct{}, len(tt.Types))
+			for _, et := range tt.Types {
+				if et == nil {
+					continue
+				}
+				existing[typeKey(et)] = struct{}{}
+			}
+
+			// 统一待追加的切片
+			var toAdd []data.Types
+			if ttt, ok := t.(*data.LspTypes); ok {
+				toAdd = ttt.Types
+			} else if t != nil {
+				toAdd = []data.Types{t}
+			}
+
+			// 追加前过滤重复
+			for _, nt := range toAdd {
+				if nt == nil {
+					continue
+				}
+				k := typeKey(nt)
+				if _, ok := existing[k]; ok {
+					continue
+				}
+				tt.Types = append(tt.Types, nt)
+				existing[k] = struct{}{}
+			}
+		}
+	}
+}
+
+// typeKey 为 data.Types 生成稳定且语义化的指纹，用于判重
+func typeKey(t data.Types) string {
+	if t == nil {
+		return ""
+	}
+	switch v := t.(type) {
+	case data.Class:
+		return "class:" + v.Name
+	case data.NullableType:
+		return "nullable:" + typeKey(v.BaseType)
+	case data.MultipleReturnType:
+		// 子类型集合顺序不重要，排序后拼接
+		keys := make([]string, 0, len(v.Types))
+		for _, sub := range v.Types {
+			keys = append(keys, typeKey(sub))
+		}
+		sort.Strings(keys)
+		return "multi:[" + strings.Join(keys, "|") + "]"
+	case data.Generic:
+		// 泛型顺序重要：按声明顺序拼接
+		keys := make([]string, 0, len(v.Types))
+		for _, sub := range v.Types {
+			keys = append(keys, typeKey(sub))
+		}
+		return "generic:" + v.Name + "<" + strings.Join(keys, ",") + ">"
+	case data.Int, data.Float, data.Bool, data.Object, data.Arrays, data.Callable, data.String:
+		return v.String()
+	default:
+		// 回退到 String()，对未知实现保持可用性
+		return t.String()
+	}
 }
 
 // findVariableDefinition 查找变量定义

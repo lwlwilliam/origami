@@ -1,4 +1,3 @@
-<?php
 namespace Net\Http;
 
 
@@ -85,7 +84,7 @@ class Server {
      * group 方法
      * 
      */
-    public function group($prefix) {
+    public function group($prefix) : Net\Http\Server {
         // 实现逻辑
     }
 
@@ -98,10 +97,10 @@ class Server {
     }
 
     /**
-     * group 方法
+     * run 方法
      * 
      */
-    public function group() {
+    public function run() {
         // 实现逻辑
     }
 

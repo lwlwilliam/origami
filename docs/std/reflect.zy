@@ -1,4 +1,3 @@
-<?php
 
 /**
  * reflect - Reflect 类
@@ -67,7 +66,7 @@ class Reflect {
      * getClassAnnotations 方法
      * 
      */
-    public function getClassAnnotations($className) {
+    public function getClassAnnotations($className) : string {
         // 实现逻辑
     }
 
@@ -75,7 +74,7 @@ class Reflect {
      * getMethodAnnotations 方法
      * 
      */
-    public function getMethodAnnotations($className, $methodName) {
+    public function getMethodAnnotations($className, $methodName) : string {
         // 实现逻辑
     }
 
@@ -83,7 +82,7 @@ class Reflect {
      * getPropertyAnnotations 方法
      * 
      */
-    public function getPropertyAnnotations($className, $propertyName) {
+    public function getPropertyAnnotations($className, $propertyName) : string {
         // 实现逻辑
     }
 
@@ -91,7 +90,7 @@ class Reflect {
      * getAllAnnotations 方法
      * 
      */
-    public function getAllAnnotations($className) {
+    public function getAllAnnotations($className) : string {
         // 实现逻辑
     }
 
@@ -99,7 +98,7 @@ class Reflect {
      * getAnnotationDetails 方法
      * 
      */
-    public function getAnnotationDetails($className, $memberType, $memberName) {
+    public function getAnnotationDetails($className, $memberType, $memberName) : string {
         // 实现逻辑
     }
 

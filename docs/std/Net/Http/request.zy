@@ -1,4 +1,3 @@
-<?php
 namespace Net\Http;
 
 
@@ -53,7 +52,7 @@ class Request {
      * context 方法
      * 
      */
-    public static function context() {
+    public static function context() : object {
         // 实现逻辑
     }
 
